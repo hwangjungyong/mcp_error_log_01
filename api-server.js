@@ -289,6 +289,30 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ==================== 에러 로그 전체 삭제 API ====================
+  if (req.method === 'DELETE' && req.url === '/api/error-log/delete-all') {
+    console.log('[API 서버] 에러 로그 전체 삭제 요청');
+    
+    try {
+      const result = errorLogsDB.deleteAll();
+      
+      console.log('[API 서버] 에러 로그 전체 삭제 완료');
+      
+      return sendJSON(res, 200, {
+        success: true,
+        message: '모든 에러 로그가 삭제되었습니다.',
+        deletedCount: result.deletedCount
+      });
+      
+    } catch (error) {
+      console.error('[API 서버] 에러 로그 전체 삭제 오류:', error);
+      return sendJSON(res, 500, {
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
   // ==================== 에러 로그 이력 조회 API ====================
   if (req.method === 'GET' && req.url.startsWith('/api/error-log/history')) {
     console.log('[API 서버] 에러 로그 이력 조회 요청');
@@ -364,9 +388,10 @@ async function startServer() {
       console.log(`[API 서버] HTTP 서버 시작 - 포트: ${PORT}`);
       console.log(`[API 서버] http://localhost:${PORT}`);
       console.log('[API 서버] 사용 가능한 엔드포인트:');
-      console.log('  - POST /api/error-log/analyze  : 에러 로그 분석');
-      console.log('  - POST /api/error-log/save     : 에러 로그 저장');
-      console.log('  - GET  /api/error-log/history  : 에러 로그 이력 조회');
+      console.log('  - POST   /api/error-log/analyze    : 에러 로그 분석');
+      console.log('  - POST   /api/error-log/save       : 에러 로그 저장');
+      console.log('  - GET    /api/error-log/history    : 에러 로그 이력 조회');
+      console.log('  - DELETE /api/error-log/delete-all  : 에러 로그 전체 삭제');
     });
   } catch (error) {
     console.error('[API 서버] 서버 시작 실패:', error);

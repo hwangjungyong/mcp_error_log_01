@@ -493,6 +493,35 @@ export const errorLogsDB = {
     stmt2.free();
     
     return log;
+  },
+
+  // 모든 에러 로그 삭제
+  deleteAll() {
+    ensureInitialized();
+    try {
+      // 삭제 전 개수 확인
+      const countStmt = db.prepare('SELECT COUNT(*) as count FROM error_logs');
+      countStmt.step();
+      const countResult = countStmt.getAsObject();
+      const deletedCount = countResult.count || 0;
+      countStmt.free();
+      
+      // 모든 에러 로그 삭제
+      const stmt = db.prepare('DELETE FROM error_logs');
+      stmt.step();
+      stmt.free();
+      
+      // 데이터베이스 파일 저장
+      const data = db.export();
+      const buffer = Buffer.from(data);
+      fs.writeFileSync(DB_FILE, buffer);
+      
+      console.log(`[데이터베이스] 모든 에러 로그 삭제 완료 (${deletedCount}건)`);
+      return { success: true, deletedCount: deletedCount };
+    } catch (error) {
+      console.error('[데이터베이스] 전체 삭제 오류:', error);
+      throw error;
+    }
   }
 };
 

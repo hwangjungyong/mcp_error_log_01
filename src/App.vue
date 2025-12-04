@@ -62,9 +62,14 @@
                 <h4 style="font-size: 16px; font-weight: 600; margin: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                   에러 로그 목록 ({{ errorLogStatusList.reduce((sum, group) => sum + (group.count || group.errors?.length || 1), 0) }}건) - 발생일자별 그룹화
                 </h4>
-                <button @click="loadErrorLogStatus" class="btn" style="padding: 3px 8px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit; white-space: nowrap; flex-shrink: 0;">
-                  🔄 새로고침
-                </button>
+                <div style="display: flex; gap: 8px;">
+                  <button @click="loadErrorLogStatus" class="btn" style="padding: 3px 8px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit; white-space: nowrap; flex-shrink: 0;">
+                    🔄 새로고침
+                  </button>
+                  <button @click="showDeleteAllConfirm = true" class="btn" style="padding: 3px 8px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit; white-space: nowrap; flex-shrink: 0;">
+                    🗑️ 전체 삭제
+                  </button>
+                </div>
               </div>
 
               <!-- 발생일자별로 그룹화하여 표시 -->
@@ -151,6 +156,30 @@
             <!-- 빈 목록 -->
             <div v-else style="padding: 40px; text-align: center; color: #666; font-size: 14px; font-family: inherit;">
               <p style="margin: 0; font-size: 14px;">저장된 에러 로그가 없습니다.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 전체 삭제 확인 다이얼로그 -->
+      <div v-if="showDeleteAllConfirm" class="modal-overlay" @click="showDeleteAllConfirm = false" style="z-index: 2010;">
+        <div class="modal-content" @click.stop style="max-width: 500px; z-index: 2011; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+          <div class="modal-header" style="padding: 20px; border-bottom: 1px solid #eee;">
+            <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #d32f2f;">⚠️ 전체 삭제 확인</h3>
+          </div>
+          <div class="modal-body" style="padding: 20px;">
+            <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; color: #333;">
+              저장된 모든 에러 로그를 삭제하시겠습니까?<br>
+              <strong style="color: #d32f2f;">이 작업은 되돌릴 수 없습니다.</strong>
+            </p>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+              <button @click="showDeleteAllConfirm = false" class="btn" style="padding: 8px 16px; background: #757575; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-family: inherit;">
+                취소
+              </button>
+              <button @click="deleteAllErrorLogs" class="btn" :disabled="isDeletingAll" style="padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-family: inherit; opacity: isDeletingAll ? 0.6 : 1;">
+                <span v-if="!isDeletingAll">삭제</span>
+                <span v-else>삭제 중...</span>
+              </button>
             </div>
           </div>
         </div>
@@ -371,6 +400,8 @@ const selectedErrorLogStatus = ref(null)
 const showErrorLogStatusDetailModal = ref(false)
 const showFullLog = ref(false)
 const showFullOriginalLog = ref(false)
+const showDeleteAllConfirm = ref(false)
+const isDeletingAll = ref(false)
 
 const toggleErrorLogAnalysis = () => {
   showErrorLogAnalysis.value = !showErrorLogAnalysis.value
@@ -468,6 +499,42 @@ const closeErrorLogStatusDetail = () => {
   selectedErrorLogStatus.value = null
   showFullLog.value = false
   showFullOriginalLog.value = false
+}
+
+// 전체 에러 로그 삭제
+const deleteAllErrorLogs = async () => {
+  if (isDeletingAll.value) {
+    return
+  }
+
+  isDeletingAll.value = true
+
+  try {
+    const response = await fetch(getApiUrl('/api/error-log/delete-all'), {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' }
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP 오류: ${response.status}`)
+    }
+
+    const data = await response.json()
+
+    if (data.success) {
+      // 목록 새로고침
+      await loadErrorLogStatus()
+      showDeleteAllConfirm.value = false
+      alert('✅ 모든 에러 로그가 삭제되었습니다.')
+    } else {
+      throw new Error(data.error || '삭제 실패')
+    }
+  } catch (error) {
+    console.error('전체 삭제 오류:', error)
+    alert(`❌ 삭제 중 오류가 발생했습니다: ${error.message}`)
+  } finally {
+    isDeletingAll.value = false
+  }
 }
 
 // 에러 내용 미리보기 추출 함수

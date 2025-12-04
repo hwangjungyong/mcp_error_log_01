@@ -1649,6 +1649,14 @@ class ErrorAnalyzer:
         error_message = error_details.get('specific_error', '')
         error_message_lower = error_message.lower()
         
+        # 실제 에러 메시지가 있으면 템플릿 대신 실제 에러 기반 해결방안 생성
+        if error_message and error_message.strip():
+            # 실제 에러 메시지 기반으로 해결방안 생성
+            actual_solutions = self._generate_solutions_from_error(error_message, error_details, error_type)
+            if actual_solutions:
+                return actual_solutions
+        
+        # 템플릿 기반 해결방안 사용 (fallback)
         for solution in base_solutions:
             customized_solution = solution.copy()
             

@@ -1,0 +1,4 @@
+2024-12-04 10:00:00 ERROR: Database connection failed
+2024-12-04 10:00:01 ERROR: Unable to connect to server
+2024-12-04 10:00:02 WARNING: Retry attempt 1 failed
+

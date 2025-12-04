@@ -1,0 +1,32 @@
+{
+  "name": "ai-error-log-analyzer",
+  "version": "1.0.0",
+  "description": "AI 에러 로그 분석 시스템 - 독립 실행 버전",
+  "type": "module",
+  "main": "api-server.js",
+  "scripts": {
+    "dev": "vite",
+    "api-server": "node api-server.js",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "concurrently \"npm run api-server\" \"npm run dev\""
+  },
+  "keywords": [
+    "error-log",
+    "analysis",
+    "ai",
+    "mcp"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "sql.js": "^1.8.0",
+    "vue": "^3.3.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.3.4",
+    "concurrently": "^8.2.1",
+    "vite": "^4.4.9"
+  }
+}
+

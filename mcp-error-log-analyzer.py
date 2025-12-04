@@ -1522,6 +1522,8 @@ class ErrorAnalyzer:
         """에러 메시지를 분석하여 조치 방법과 재발 방지책을 제안"""
         # 에러 메시지에서 구체적인 정보 추출
         error_details = self._parse_error_details(error_message)
+        # 실제 에러 메시지를 error_details에 추가 (해결방안 커스터마이징에 사용)
+        error_details['specific_error'] = error_message
         error_lower = error_message.lower()
         
         # 에러 타입 분류 (더 정확한 매칭)
@@ -1643,8 +1645,105 @@ class ErrorAnalyzer:
         """에러 세부 정보를 반영하여 해결방안을 커스터마이징"""
         customized = []
         
+        # 실제 에러 메시지에서 구체적인 정보 추출
+        error_message = error_details.get('specific_error', '')
+        error_message_lower = error_message.lower()
+        
         for solution in base_solutions:
             customized_solution = solution.copy()
+            
+            # 실제 에러 메시지에 맞게 해결방안 제목과 설명 수정
+            if error_message:
+                # 에러 메시지의 핵심 내용을 해결방안에 반영
+                if 'cannot read property' in error_message_lower or 'undefined' in error_message_lower:
+                    if 'data' in error_message_lower or 'property' in error_message_lower:
+                        # Vue/React 컴포넌트 에러인 경우
+                        prop_match = re.search(r"property\s+['\"]([^'\"]+)['\"]", error_message_lower)
+                        if prop_match:
+                            prop_name = prop_match.group(1)
+                            customized_solution['title'] = f"{prop_name} 속성 접근 오류 해결"
+                            customized_solution['description'] = f"'{prop_name}' 속성이 undefined인 상태에서 접근하려고 시도했습니다. 데이터가 로드되기 전에 접근하거나, 옵셔널 체이닝을 사용해야 합니다."
+                            if 'steps' not in customized_solution:
+                                customized_solution['steps'] = []
+                            customized_solution['steps'].insert(0, f"'{prop_name}' 속성이 정의되어 있는지 확인")
+                            customized_solution['steps'].insert(1, f"데이터 로딩 완료 후 접근하도록 수정: `{prop_name}?.data` 또는 `{prop_name} && {prop_name}.data`")
+                            customized_solution['code_example'] = f"// 수정 전\nconst value = {prop_name}.data;\n\n// 수정 후 (옵셔널 체이닝)\nconst value = {prop_name}?.data;\n\n// 또는 조건부 접근\nif ({prop_name} && {prop_name}.data) {{\n  const value = {prop_name}.data;\n}}"
+                
+                elif 'failed to resolve import' in error_message_lower or 'cannot find module' in error_message_lower:
+                    # 모듈 import 에러인 경우
+                    import_match = re.search(r"import\s+['\"]([^'\"]+)['\"]", error_message_lower)
+                    if import_match:
+                        module_path = import_match.group(1)
+                        customized_solution['title'] = f"모듈 import 경로 오류 해결"
+                        customized_solution['description'] = f"'{module_path}' 모듈을 찾을 수 없습니다. 파일 경로나 모듈 이름이 올바른지 확인하세요."
+                        if 'steps' not in customized_solution:
+                            customized_solution['steps'] = []
+                        customized_solution['steps'].insert(0, f"'{module_path}' 파일이 실제로 존재하는지 확인")
+                        customized_solution['steps'].insert(1, "상대 경로와 절대 경로(@/ alias) 확인")
+                        customized_solution['steps'].insert(2, "파일 확장자(.vue, .js 등) 확인")
+                        customized_solution['code_example'] = f"// 잘못된 import\nimport LoginModal from '@/components/LoginModal';\n\n// 올바른 import (파일 확장자 포함 또는 제거)\nimport LoginModal from '@/components/LoginModal.vue';\n// 또는\nimport LoginModal from './components/LoginModal.vue';"
+                
+                elif 'connection timeout' in error_message_lower or 'timeout' in error_message_lower:
+                    # 타임아웃 에러인 경우
+                    timeout_match = re.search(r'timeout.*?(\d+)', error_message_lower)
+                    if timeout_match:
+                        timeout_value = timeout_match.group(1)
+                        customized_solution['description'] = f"연결 타임아웃이 발생했습니다 (타임아웃: {timeout_value}ms). 서버가 응답하지 않거나 네트워크가 느립니다."
+                        if 'steps' not in customized_solution:
+                            customized_solution['steps'] = []
+                        customized_solution['steps'].insert(0, f"타임아웃 값 증가: {timeout_value}ms → {int(timeout_value) * 2}ms 이상")
+                        customized_solution['steps'].insert(1, "서버 상태 확인: 서버가 실행 중이고 응답하는지 확인")
+                        customized_solution['steps'].insert(2, "네트워크 연결 확인: 방화벽이나 프록시 설정 확인")
+                
+                elif 'database is locked' in error_message_lower or 'sqlite.*locked' in error_message_lower:
+                    # SQLite 잠금 에러인 경우
+                    customized_solution['title'] = "SQLite 데이터베이스 잠금 해결"
+                    customized_solution['description'] = "데이터베이스가 다른 프로세스에 의해 잠겨있습니다. 동시 접근 문제입니다."
+                    if 'steps' not in customized_solution:
+                        customized_solution['steps'] = []
+                    customized_solution['steps'].insert(0, "다른 프로세스가 데이터베이스를 사용 중인지 확인")
+                    customized_solution['steps'].insert(1, "데이터베이스 연결을 적절히 닫았는지 확인")
+                    customized_solution['steps'].insert(2, "트랜잭션 타임아웃 설정 확인")
+                    customized_solution['code_example'] = "// 데이터베이스 연결 닫기\nstmt.free();\ndb.close();\n\n// 또는 타임아웃 설정\nconst db = new Database('database.db', { timeout: 5000 });"
+                
+                elif 'jwt expired' in error_message_lower or 'token expired' in error_message_lower:
+                    # JWT 만료 에러인 경우
+                    customized_solution['title'] = "JWT 토큰 만료 해결"
+                    customized_solution['description'] = "JWT 토큰이 만료되었습니다. 토큰을 갱신하거나 재발급해야 합니다."
+                    if 'steps' not in customized_solution:
+                        customized_solution['steps'] = []
+                    customized_solution['steps'].insert(0, "토큰 만료 시간 확인: 토큰의 exp 클레임 확인")
+                    customized_solution['steps'].insert(1, "토큰 갱신 로직 구현: refresh token 사용")
+                    customized_solution['steps'].insert(2, "사용자 재로그인 요청")
+                    customized_solution['code_example'] = "// 토큰 만료 확인\nconst decoded = jwt.decode(token);\nif (decoded.exp < Date.now() / 1000) {\n  // 토큰 갱신 또는 재로그인\n  refreshToken();\n}"
+                
+                elif 'environment variable' in error_message_lower or 'env' in error_message_lower and 'missing' in error_message_lower:
+                    # 환경 변수 누락 에러인 경우
+                    env_match = re.search(r"['\"]([^'\"]+)['\"]\s+is\s+not\s+set", error_message_lower)
+                    if env_match:
+                        env_name = env_match.group(1).upper()
+                        customized_solution['title'] = f"환경 변수 {env_name} 설정"
+                        customized_solution['description'] = f"필수 환경 변수 '{env_name}'가 설정되지 않았습니다."
+                        if 'steps' not in customized_solution:
+                            customized_solution['steps'] = []
+                        customized_solution['steps'].insert(0, f".env 파일에 {env_name}=값 추가")
+                        customized_solution['steps'].insert(1, "환경 변수 로드 확인: dotenv 또는 process.env 확인")
+                        customized_solution['steps'].insert(2, "서버 재시작: 환경 변수 변경 후 서버 재시작")
+                        customized_solution['code_example'] = f"// .env 파일에 추가\n{env_name}=your_api_key_here\n\n// 코드에서 확인\nif (!process.env.{env_name}) {{\n  throw new Error(`{env_name} is required`);\n}}"
+                
+                elif 'permission denied' in error_message_lower or 'eacces' in error_message_lower:
+                    # 파일 권한 에러인 경우
+                    file_match = re.search(r"['\"]([^'\"]+\.(?:db|log|json|txt))['\"]", error_message_lower)
+                    if file_match:
+                        file_path = file_match.group(1)
+                        customized_solution['title'] = f"파일 권한 오류 해결: {file_path}"
+                        customized_solution['description'] = f"'{file_path}' 파일에 대한 읽기/쓰기 권한이 없습니다."
+                        if 'steps' not in customized_solution:
+                            customized_solution['steps'] = []
+                        customized_solution['steps'].insert(0, f"파일 권한 확인: '{file_path}' 파일의 권한 확인")
+                        customized_solution['steps'].insert(1, "Windows: 파일 속성에서 읽기 전용 해제")
+                        customized_solution['steps'].insert(2, "Linux/Mac: chmod 명령어로 권한 부여: chmod 644 {file_path}")
+                        customized_solution['code_example'] = f"// 파일 권한 확인\nconst fs = require('fs');\ntry {{\n  fs.accessSync('{file_path}', fs.constants.R_OK | fs.constants.W_OK);\n}} catch (e) {{\n  console.error('권한 없음:', e.message);\n}}"
             
             # 파일 경로와 라인 번호가 있으면 해결방안에 추가
             if error_details['file_path']:

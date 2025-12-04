@@ -58,11 +58,11 @@
 
             <!-- 에러 로그 목록 -->
             <div v-else-if="errorLogStatusList && errorLogStatusList.length > 0">
-              <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
-                <h4 style="font-size: 16px; font-weight: 600; margin: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <h4 style="font-size: 16px; font-weight: 600; margin: 0; flex: 1; min-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                   에러 로그 목록 ({{ errorLogStatusList.reduce((sum, group) => sum + (group.count || group.errors?.length || 1), 0) }}건) - 발생일자별 그룹화
                 </h4>
-                <div style="display: flex; gap: 8px;">
+                <div style="display: flex; gap: 8px; flex-shrink: 0;">
                   <button @click="loadErrorLogStatus" class="btn" style="padding: 3px 8px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit; white-space: nowrap; flex-shrink: 0;">
                     🔄 새로고침
                   </button>

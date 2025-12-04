@@ -499,12 +499,25 @@ export const errorLogsDB = {
   deleteAll() {
     ensureInitialized();
     try {
+      // 외래키 제약조건 활성화 (SQLite는 기본적으로 비활성화)
+      db.run('PRAGMA foreign_keys = ON');
+      
       // 삭제 전 개수 확인
       const countStmt = db.prepare('SELECT COUNT(*) as count FROM error_logs');
       countStmt.step();
       const countResult = countStmt.getAsObject();
       const deletedCount = countResult.count || 0;
       countStmt.free();
+      
+      // 메타데이터 테이블 먼저 삭제 (외래키 제약조건이 있을 수 있음)
+      try {
+        const metadataStmt = db.prepare('DELETE FROM error_log_metadata');
+        metadataStmt.step();
+        metadataStmt.free();
+        console.log('[데이터베이스] 메타데이터 삭제 완료');
+      } catch (metadataError) {
+        console.warn('[데이터베이스] 메타데이터 삭제 중 오류 (무시):', metadataError.message);
+      }
       
       // 모든 에러 로그 삭제
       const stmt = db.prepare('DELETE FROM error_logs');

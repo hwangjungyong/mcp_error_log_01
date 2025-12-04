@@ -2,7 +2,14 @@
 
 ## 개요
 
-이 문서는 AI 에러 로그 분석 시스템의 **MCP (Model Context Protocol) 서버 구조**를 상세히 설명합니다. 다른 AI 시스템 (예: aipro, Claude Desktop 등)에 MCP 서버를 설치하거나 통합할 때 참고하세요.
+이 문서는 **"어떻게 동작하는가"**에 집중합니다.
+
+- ✅ **MCP 서버의 내부 구조** (코드 구조, 클래스, 함수)
+- ✅ **통신 프로토콜** (JSON-RPC 형식, 요청/응답 구조)
+- ✅ **사용자 질문 처리 플로우** (질문 시 어떤 처리가 일어나는지)
+- ✅ **수집되는 정보** (어떤 데이터가 수집되고 어떻게 분석되는지)
+
+**설치 방법**이 궁금하시다면 → [`설치_및_구성_가이드.md`](설치_및_구성_가이드.md) 참조
 
 ## MCP 서버란?
 
@@ -255,18 +262,57 @@ npm start
 - 프론트엔드: http://localhost:5183
 - API 서버: http://localhost:3011
 
-## Node.js에서 MCP 서버 호출
+## 통신 프로토콜 상세
 
-### spawn을 사용한 통신
+### JSON-RPC 통신 방식
+
+MCP 서버는 표준 입출력(stdin/stdout)을 통해 JSON-RPC 형식으로 통신합니다.
+
+#### 요청 형식
+
+AI 시스템 → MCP 서버:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "analyze_error_logs",
+    "arguments": {
+      "log_content": "에러 로그 내용...",
+      "log_file_path": "경로 (선택사항)",
+      "workspace_path": "워크스페이스 경로 (선택사항)"
+    }
+  }
+}
+```
+
+#### 응답 형식
+
+MCP 서버 → AI 시스템:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "## 1. 에러 로그 요약...\n\n<JSON_START>{...분석 결과 JSON...}<JSON_END>"
+      }
+    ]
+  }
+}
+```
+
+### Node.js에서 MCP 서버 호출 예제
+
+**참고**: 이 예제는 Node.js API 서버(`api-server.js`)에서 사용하는 방식입니다.
 
 ```javascript
 import { spawn } from 'child_process';
-import { join } from 'path';
 
-const pythonScript = join(__dirname, 'mcp-error-log-analyzer.py');
-
-// Python 프로세스 실행
-const pythonProcess = spawn('python', [pythonScript], {
+const pythonProcess = spawn('python', ['mcp-error-log-analyzer.py'], {
   stdio: ['pipe', 'pipe', 'pipe'],
   encoding: 'utf-8'
 });
@@ -277,7 +323,7 @@ const request = {
   id: 1,
   method: 'tools/call',
   params: {
-    name: 'analyze_error_log',
+    name: 'analyze_error_logs',
     arguments: {
       log_content: '에러 로그 내용...'
     }
@@ -286,32 +332,19 @@ const request = {
 
 pythonProcess.stdin.write(JSON.stringify(request) + '\n');
 
-// 응답 수신
+// 응답 수신 및 JSON 추출
 let output = '';
 pythonProcess.stdout.on('data', (data) => {
   output += data.toString();
-  
-  // JSON 결과 추출
   const jsonMatch = output.match(/<JSON_START>([\s\S]*?)<JSON_END>/);
   if (jsonMatch) {
-    try {
-      const result = JSON.parse(jsonMatch[1]);
-      console.log('분석 결과:', result);
-    } catch (e) {
-      console.error('JSON 파싱 오류:', e);
-    }
+    const result = JSON.parse(jsonMatch[1]);
+    // 결과 처리
   }
 });
-
-// 에러 처리
-pythonProcess.stderr.on('data', (data) => {
-  console.error('Python 오류:', data.toString());
-});
-
-pythonProcess.on('close', (code) => {
-  console.log(`Python 프로세스 종료: ${code}`);
-});
 ```
+
+**실제 구현**은 `api-server.js` 파일을 참조하세요.
 
 ## 환경 변수
 

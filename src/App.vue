@@ -58,18 +58,10 @@
 
             <!-- 에러 로그 목록 -->
             <div v-else-if="errorLogStatusList && errorLogStatusList.length > 0">
-              <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-                <h4 style="font-size: 16px; font-weight: 600; margin: 0; flex: 1; min-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              <div style="margin-bottom: 12px;">
+                <h4 style="font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
                   에러 로그 목록 ({{ errorLogStatusList.reduce((sum, group) => sum + (group.count || group.errors?.length || 1), 0) }}건) - 발생일자별 그룹화
                 </h4>
-                <div style="display: flex; gap: 8px; flex-shrink: 0;">
-                  <button @click="loadErrorLogStatus" class="btn" style="padding: 3px 8px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit; white-space: nowrap; flex-shrink: 0;">
-                    🔄 새로고침
-                  </button>
-                  <button @click="showDeleteAllConfirm = true" class="btn" style="padding: 3px 8px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit; white-space: nowrap; flex-shrink: 0;">
-                    🗑️ 전체 삭제
-                  </button>
-                </div>
               </div>
 
               <!-- 발생일자별로 그룹화하여 표시 -->
@@ -85,7 +77,16 @@
                 </div>
 
                 <!-- 해당 날짜의 에러 목록 -->
-                <div style="overflow-x: auto; background: white; border-radius: 0 0 8px 8px;">
+                <div style="overflow-x: auto; background: white; border-radius: 0 0 8px 8px; position: relative;">
+                  <!-- 버튼을 테이블 오른쪽 상단에 배치 -->
+                  <div style="position: absolute; top: 8px; right: 8px; display: flex; gap: 8px; z-index: 10;">
+                    <button @click="loadErrorLogStatus" class="btn" style="padding: 3px 8px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit; white-space: nowrap; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                      🔄 새로고침
+                    </button>
+                    <button @click="showDeleteAllConfirm = true" class="btn" style="padding: 3px 8px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit; white-space: nowrap; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                      🗑️ 전체 삭제
+                    </button>
+                  </div>
                   <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                     <thead>
                       <tr style="background: #fafafa;">
